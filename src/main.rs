@@ -33,10 +33,10 @@ fn main() {
 
     // Define structural landmarks tailored exactly to the provided xoa-deploy.vue
     let patches = vec![
-        PatchDefinition {
+       PatchDefinition {
             name: "Vue Imports Validation Landmark",
-            search: "import { computed, onUnmounted, ref, watch } from 'vue'",
-            replace: "import { computed, onUnmounted, ref, watch } from 'vue'", // Already contains required imports
+            search: "import { computed, ref } from 'vue'",
+            replace: "import { computed, ref, watch } from 'vue'", 
         },
         PatchDefinition {
             name: "Configuration Form Elements Injection",
