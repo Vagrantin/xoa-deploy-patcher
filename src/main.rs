@@ -46,6 +46,7 @@ fn main() {
             <VtsInputWrapper :label="t('xoa-image-url')">
               <div class="image-source-row">
                 <select v-model="imageSource" class="image-source-select">
+                  <option value="xoa-hl">{{ t('xoa-hl-image') }}</option>
                   <option value="vates">{{ t('vates-image') }}</option>
                   <option value="ronivay">{{ t('ronivay-image') }}</option>
                   <option value="custom">{{ t('custom-url') }}</option>
@@ -198,16 +199,47 @@ fn main() {
             replace: r#"const REQUIRED_GB = 20
 
 // ── XOA image sources ─────────────────────────────────────────────────────────
-// Option 1 – Vates official: VM.import called directly, no proxy.
-// Option 2 – Ronivay community: routed through xoa-proxy (gzip + HTTP/HTTPS).
-// Option 3 – Custom URL: same proxy path as ronivay.
+// Option 1 – XOA HomeLab: latest agent-built image, resolved at deploy time from
+//            the Vagrantin/xoa-hl GitHub releases, routed through xoa-proxy.
+// Option 2 – Vates official: VM.import called directly, no proxy.
+// Option 3 – Ronivay community: routed through xoa-proxy (gzip + HTTP/HTTPS).
+// Option 4 – Custom URL: same proxy path as ronivay.
 const XOA_VATES_IMAGE_URL = 'http://xoa.io/xva'
 const XOA_RONIVAY_IMAGE_URL = 'https://xo-image.yawn.fi/downloads/image.xva.gz'
+const XOA_HL_RELEASES_API = 'https://api.github.com/repos/Vagrantin/xoa-hl/releases?per_page=30'
+const XOA_HL_IMAGE_TAG_PREFIX = 'xoa-image-'
 
-type ImageSource = 'vates' | 'ronivay' | 'custom'
+/**
+ * Resolves the download URL of the newest agent-built XOA-HL image.
+ * The xoa-hl repo also hosts RPM releases (v*_sha tags), so filter on the
+ * xoa-image- tag prefix AND an .xva/.xva.gz asset — the same predicate the
+ * build agent uses. The API returns releases newest-first.
+ */
+async function resolveXoaHlImageUrl(): Promise<string> {
+  const response = await fetch(XOA_HL_RELEASES_API)
+  if (!response.ok) {
+    throw new Error(`GitHub releases fetch failed: ${response.status}`)
+  }
+  const releases = (await response.json()) as {
+    tag_name: string
+    assets: { name: string; browser_download_url: string }[]
+  }[]
+  for (const release of releases) {
+    if (!release.tag_name.startsWith(XOA_HL_IMAGE_TAG_PREFIX)) {
+      continue
+    }
+    const asset = release.assets.find(a => a.name.endsWith('.xva') || a.name.endsWith('.xva.gz'))
+    if (asset !== undefined) {
+      return asset.browser_download_url
+    }
+  }
+  throw new Error('No XOA-HL image release found')
+}
+
+type ImageSource = 'xoa-hl' | 'vates' | 'ronivay' | 'custom'
 
 /** Which image source is currently selected. */
-const imageSource = ref<ImageSource>('ronivay')
+const imageSource = ref<ImageSource>('xoa-hl')
 
 /**
  * User-entered URL, only used when imageSource === 'custom'.
@@ -253,24 +285,25 @@ const enableSshAccount = ref(true)
 const sshPwd = ref('')
 const sshPwdConfirm = ref('')"#,
             replace: r#"// Credential refs — values depend on imageSource (see watch below).
-// Start with CE defaults because default imageSource is 'ronivay'.
-const xoaUser = ref('admin@admin.net')
-const xoaPwd = ref('admin')
-const xoaPwdConfirm = ref('admin')
+// Start empty because the default imageSource is 'xoa-hl', whose image applies
+// the credentials entered here (via XenStore) at first boot.
+const xoaUser = ref('')
+const xoaPwd = ref('')
+const xoaPwdConfirm = ref('')
 const enableSshAccount = ref(true)
-const sshPwd = ref('xopass')
-const sshPwdConfirm = ref('xopass')
+const sshPwd = ref('')
+const sshPwdConfirm = ref('')
 
 /**
- * True when fields should be editable (Vates or Custom).
+ * True when fields should be editable (XOA HomeLab, Vates or Custom).
  * Only the Ronivay option uses baked-in, pre-filled credentials.
  */
 const isEditable = computed(() => imageSource.value !== 'ronivay')
 
 /**
- * When switching to the Vates path, clear baked-in defaults so the user must
- * fill in real credentials (upstream behaviour).
- * When switching away, restore the pre-filled CE defaults.
+ * When switching to the Ronivay path, show its baked-in defaults read-only.
+ * When switching away, clear the fields so the user must fill in real
+ * credentials (upstream behaviour).
  */
 watch(imageSource, source => {
   if (source === 'ronivay') {
@@ -326,16 +359,22 @@ watch(imageSource, source => {
         false, // force
       ])) as string[]
     )[0]"#,
-            replace: r#"    // Option 1 (Vates): call VM.import directly — upstream behaviour, no proxy.
-    // Options 2 & 3 (Ronivay / Custom): route through xoa-proxy which handles
+            replace: r#"    // Vates: call VM.import directly — upstream behaviour, no proxy.
+    // XOA HomeLab / Ronivay / Custom: route through xoa-proxy which handles
     // gzip decompression and both HTTP/HTTPS sources (including self-signed TLS).
-    const importUrl =
-      imageSource.value === 'vates'
-        ? XOA_VATES_IMAGE_URL
-        : buildProxyUrl(
-            imageSource.value === 'ronivay' ? XOA_RONIVAY_IMAGE_URL : xoaImageUrl.value,
-            verifySsl.value
-          )
+    // The XOA HomeLab URL is resolved at deploy time from the latest GitHub release.
+    let importUrl: string
+    if (imageSource.value === 'vates') {
+      importUrl = XOA_VATES_IMAGE_URL
+    } else {
+      const sourceUrl =
+        imageSource.value === 'xoa-hl'
+          ? await resolveXoaHlImageUrl()
+          : imageSource.value === 'ronivay'
+            ? XOA_RONIVAY_IMAGE_URL
+            : xoaImageUrl.value
+      importUrl = buildProxyUrl(sourceUrl, verifySsl.value)
+    }
 
     vmRef.value = (
       (await xapi.call('VM.import', [
