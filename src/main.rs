@@ -200,23 +200,24 @@ fn main() {
 
 // ── XOA image sources ─────────────────────────────────────────────────────────
 // Option 1 – XOA HomeLab: latest agent-built image, resolved at deploy time from
-//            the Vagrantin/xoa-hl GitHub releases, routed through xoa-proxy.
+//            the Vagrantin/build-xoa-hl GitHub releases, routed through xoa-proxy.
 // Option 2 – Vates official: VM.import called directly, no proxy.
 // Option 3 – Ronivay community: routed through xoa-proxy (gzip + HTTP/HTTPS).
 // Option 4 – Custom URL: same proxy path as ronivay.
 const XOA_VATES_IMAGE_URL = 'http://xoa.io/xva'
 const XOA_RONIVAY_IMAGE_URL = 'https://xo-image.yawn.fi/downloads/image.xva.gz'
-const XOA_HL_RELEASES_API = 'https://api.github.com/repos/Vagrantin/xoa-hl/releases?per_page=30'
+const XOA_IMAGE_RELEASES_API =
+  'https://api.github.com/repos/Vagrantin/build-xoa-hl/releases?per_page=30'
 const XOA_HL_IMAGE_TAG_PREFIX = 'xoa-image-'
 
 /**
  * Resolves the download URL of the newest agent-built XOA-HL image.
- * The xoa-hl repo also hosts RPM releases (v*_sha tags), so filter on the
- * xoa-image- tag prefix AND an .xva/.xva.gz asset — the same predicate the
- * build agent uses. The API returns releases newest-first.
+ * Images are published on build-xoa-hl, the repo they are built from; the
+ * xoa-image- tag prefix and .xva/.xva.gz asset check are kept as a guard (the
+ * same predicate the build agent uses). The API returns releases newest-first.
  */
 async function resolveXoaHlImageUrl(): Promise<string> {
-  const response = await fetch(XOA_HL_RELEASES_API)
+  const response = await fetch(XOA_IMAGE_RELEASES_API)
   if (!response.ok) {
     throw new Error(`GitHub releases fetch failed: ${response.status}`)
   }
