@@ -214,7 +214,10 @@ const XOA_HL_IMAGE_TAG_PREFIX = 'xoa-image-'
  * Resolves the download URL of the newest agent-built XOA-HL image.
  * Images are published on build-xoa-hl, the repo they are built from; the
  * xoa-image- tag prefix and .xva/.xva.gz asset check are kept as a guard (the
- * same predicate the build agent uses). The API returns releases newest-first.
+ * same predicate the build agent uses). Sorted by published_at ourselves:
+ * every xoa-image-* release built from the same build-xoa-hl commit shares
+ * one created_at (the tag's target commit date), so trusting the API's
+ * list order silently picks an arbitrary same-day release, not the newest.
  */
 async function resolveXoaHlImageUrl(): Promise<string> {
   const response = await fetch(XOA_IMAGE_RELEASES_API)
@@ -223,18 +226,21 @@ async function resolveXoaHlImageUrl(): Promise<string> {
   }
   const releases = (await response.json()) as {
     tag_name: string
+    published_at: string
     assets: { name: string; browser_download_url: string }[]
   }[]
-  for (const release of releases) {
-    if (!release.tag_name.startsWith(XOA_HL_IMAGE_TAG_PREFIX)) {
-      continue
-    }
-    const asset = release.assets.find(a => a.name.endsWith('.xva') || a.name.endsWith('.xva.gz'))
-    if (asset !== undefined) {
-      return asset.browser_download_url
-    }
+  const candidates = releases
+    .filter(release => release.tag_name.startsWith(XOA_HL_IMAGE_TAG_PREFIX))
+    .flatMap(release => {
+      const asset = release.assets.find(a => a.name.endsWith('.xva') || a.name.endsWith('.xva.gz'))
+      return asset === undefined ? [] : [{ release, asset }]
+    })
+    .sort((a, b) => Date.parse(b.release.published_at) - Date.parse(a.release.published_at))
+
+  if (candidates.length === 0) {
+    throw new Error('No XOA-HL image release found')
   }
-  throw new Error('No XOA-HL image release found')
+  return candidates[0].asset.browser_download_url
 }
 
 type ImageSource = 'xoa-hl' | 'vates' | 'ronivay' | 'custom'
