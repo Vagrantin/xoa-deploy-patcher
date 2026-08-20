@@ -291,7 +291,7 @@ const xoaPwdConfirm = ref('')
 const enableSshAccount = ref(true)
 const sshPwd = ref('')
 const sshPwdConfirm = ref('')"#,
-            replace: r#"// Credential refs — values depend on imageSource (see watch below).
+            replace: r#"// Credential refs, values depend on imageSource (see watch below).
 // Start empty because the default imageSource is 'xoa-hl', whose image applies
 // the credentials entered here (via XenStore) at first boot.
 const xoaUser = ref('')
@@ -366,7 +366,7 @@ watch(imageSource, source => {
         false, // force
       ])) as string[]
     )[0]"#,
-            replace: r#"    // Vates: call VM.import directly — upstream behaviour, no proxy.
+            replace: r#"    // Vates: call VM.import directly, upstream behaviour, no proxy.
     // XOA HomeLab / Ronivay / Custom: route through xoa-proxy which handles
     // gzip decompression and both HTTP/HTTPS sources (including self-signed TLS).
     // The XOA HomeLab URL is resolved at deploy time from the latest GitHub release.
@@ -436,15 +436,15 @@ watch(imageSource, source => {
     for patch in patches {
         let matches = content.matches(patch.search).count();
         if matches == 0 {
-            eprintln!("❌ [PATCH FAILURE] Missing structural milestone anchor: '{}'", patch.name);
+            eprintln!("[PATCH FAILURE] Missing structural milestone anchor: '{}'", patch.name);
             process::exit(1);
         } else if matches > 1 {
-            eprintln!("❌ [PATCH FAILURE] Ambiguous structural target. Landmark found {} times for: '{}'", matches, patch.name);
+            eprintln!("[PATCH FAILURE] Ambiguous structural target. Landmark found {} times for: '{}'", matches, patch.name);
             process::exit(1);
         }
 
         content = content.replace(patch.search, patch.replace);
-        println!("✅ Applied milestone transformation: {}", patch.name);
+        println!("[OK] Applied milestone transformation: {}", patch.name);
     }
 
     if let Err(e) = fs::write(file_path, content) {
@@ -452,5 +452,5 @@ watch(imageSource, source => {
         process::exit(1);
     }
 
-    println!("🎉 File structurally modernized successfully!");
+    println!("[DONE] File structurally modernized successfully!");
 }
