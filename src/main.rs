@@ -463,4 +463,6 @@ watch(imageSource, source => {
 
 // QA demo (xcp-hl#147), never to be merged: deliberately misformatted.
 #[allow(dead_code)]
-fn   qa_demo( )->u8{1}
+fn qa_demo() -> u8 {
+    1
+}
