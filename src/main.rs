@@ -33,10 +33,10 @@ fn main() {
 
     // Define structural landmarks tailored exactly to the provided xoa-deploy.vue
     let patches = vec![
-       PatchDefinition {
+        PatchDefinition {
             name: "Vue Imports Validation Landmark",
             search: "import { computed, ref } from 'vue'",
-            replace: "import { computed, ref, watch } from 'vue'", 
+            replace: "import { computed, ref, watch } from 'vue'",
         },
         PatchDefinition {
             name: "Configuration Form Elements Injection",
@@ -436,10 +436,16 @@ watch(imageSource, source => {
     for patch in patches {
         let matches = content.matches(patch.search).count();
         if matches == 0 {
-            eprintln!("[PATCH FAILURE] Missing structural milestone anchor: '{}'", patch.name);
+            eprintln!(
+                "[PATCH FAILURE] Missing structural milestone anchor: '{}'",
+                patch.name
+            );
             process::exit(1);
         } else if matches > 1 {
-            eprintln!("[PATCH FAILURE] Ambiguous structural target. Landmark found {} times for: '{}'", matches, patch.name);
+            eprintln!(
+                "[PATCH FAILURE] Ambiguous structural target. Landmark found {} times for: '{}'",
+                matches, patch.name
+            );
             process::exit(1);
         }
 
