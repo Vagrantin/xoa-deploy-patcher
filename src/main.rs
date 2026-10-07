@@ -58,6 +58,7 @@ fn main() {
                   class="custom-url-input"
                 />
               </div>
+              <p class="image-source-description">{{ t(`image-desc-${imageSource}`) }}</p>
             </VtsInputWrapper>
           </div>
           <div v-if="imageSource !== 'vates'" class="row">
@@ -426,6 +427,11 @@ watch(imageSource, source => {
 
 .custom-url-input {
   flex: 1;
+}
+
+.image-source-description {
+  margin: 0.8rem 0 0;
+  color: var(--color-neutral-txt-secondary);
 }
 
 </style>"#,
